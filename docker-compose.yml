@@ -2,23 +2,10 @@ networks:
   default:
     name: gopher_ms_network
 
-services:
-  broker:
-    build:
-      context: ./broker_service
-      dockerfile: broker-service.dev.Dockerfile
-    restart: unless-stopped
-    container_name: gopher_ms_broker
-    ports:
-      - "8080:80"
-    deploy:
-      mode: replicated
-      replicas: 1
-    volumes:
-      - ./broker_service:/usr/src/app
-    environment:
-      - AIR_ENV=dev
+volumes:
+  postgres_data:
 
+services:
   front_end:
     build:
       context: ./front_end
@@ -33,4 +20,62 @@ services:
     volumes:
       - ./front_end:/usr/src/app
     environment:
-      - AIR_ENV=dev
+      AIR_ENV: dev
+
+  db:
+    image: postgres:16-alpine
+    container_name: gopher_ms_db
+    ports:
+      - "5432:5432"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      POSTGRES_DB: users
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d users"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  broker:
+    build:
+      context: ./broker_service
+      dockerfile: broker-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_broker
+    ports:
+      - "8080:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./broker_service:/usr/src/app
+    environment:
+      AIR_ENV: dev
+
+  auth:
+    build:
+      context: ./auth_service
+      dockerfile: auth-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_auth
+    ports:
+      - "8081:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./auth_service:/usr/src/app
+    environment:
+      AIR_ENV: dev
+      DSN: postgresql://root:password@db:5432/users?sslmode=disable
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true

@@ -68,5 +68,70 @@ func (l *LogEntry) All() ([]LogEntry, error) {
 	}
 
 	return results, nil
+}
 
+func (l *LogEntry) GetOne(id string) (*LogEntry, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	coll := client.Database("logs").Collection("logs")
+
+	docID, err := primitive.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, err
+	}
+
+	var entry LogEntry
+	err = coll.FindOne(ctx, bson.M{"_id": docID}).Decode(&entry)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entry, nil
+}
+
+func (l *LogEntry) DropCollection() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	coll := client.Database("logs").Collection("logs")
+
+	if err := coll.Drop(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (l *LogEntry) Update() (*mongo.UpdateResult, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	coll := client.Database("logs").Collection("logs")
+
+	docID, err := primitive.ObjectIDFromHex(l.ID.Hex())
+	if err != nil {
+		return nil, err
+	}
+
+	filter := bson.M{"_id": docID}
+	update := bson.D{
+		{Key: "$set", Value: bson.D{
+			{Key: "name", Value: l.Name},
+			{Key: "data", Value: l.Data},
+			{Key: "updated_at", Value: time.Now()},
+		}},
+	}
+
+	result, err := coll.UpdateOne(
+		ctx,
+		filter,
+		update,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

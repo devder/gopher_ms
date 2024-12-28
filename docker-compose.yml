@@ -4,6 +4,7 @@ networks:
 
 volumes:
   postgres_data:
+  mongodb_data:
 
 services:
   front_end:
@@ -43,6 +44,18 @@ services:
       retries: 5
       start_period: 30s
 
+  mongodb:
+    image: mongo:4.0
+    platform: linux/arm64
+    container_name: gopher_ms_mongodb
+    ports:
+      - "27018:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongodb_data:/data/db
+
   broker:
     build:
       context: ./broker_service
@@ -79,3 +92,21 @@ services:
       db:
         condition: service_healthy
         restart: true
+
+  logger:
+    build:
+      context: ./logger_service
+      dockerfile: logger-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_logger
+    ports:
+      - "8082:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./logger_service:/usr/src/app
+    environment:
+      AIR_ENV: dev
+      MONGO_USERNAME: root
+      MONGO_PASSWORD: password

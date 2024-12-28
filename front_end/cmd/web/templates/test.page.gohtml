@@ -8,6 +8,7 @@
                 <hr>
                 <a id="brokerBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Broker</a>
                 <a id="authBrokerBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Auth</a>
+                <a id="loggerBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Logger</a>
 
                 <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
                     <span class="text-muted">Output shows here...</span>
@@ -35,6 +36,7 @@
     <script>
     const brokerBtn = document.getElementById("brokerBtn");
     const authBrokerBtn = document.getElementById("authBrokerBtn");
+    const loggerBtn = document.getElementById("loggerBtn");
     const output = document.getElementById("output");
     const sent = document.getElementById("payload");
     const received = document.getElementById("received");
@@ -86,6 +88,38 @@
                 output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
             } else {
                 output.innerHTML += `<br><strong>Response from auth service:</strong> ${data.message}`;
+            }
+            sent.innerHTML = JSON.stringify(payload, null, 4);
+            received.innerHTML = JSON.stringify(data, null, 4);
+        } catch (e) {
+            console.error(e);
+            output.innerHTML += `<br><strong>Error</strong>: ${e.message}`;
+        }
+    });
+
+    loggerBtn.addEventListener("click", async () => {
+        const payload = {
+            action: "log",
+            log: {
+                name: "info",
+                data: "This is a test message",
+            }
+        }
+        try {
+            const response = await fetch("http:\/\/localhost:8080/handle", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            if (data.error) {
+                console.error(data.message);
+                output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
+            } else {
+                output.innerHTML += `<br><strong>Response from logger service:</strong> ${data.message}`;
             }
             sent.innerHTML = JSON.stringify(payload, null, 4);
             received.innerHTML = JSON.stringify(data, null, 4);

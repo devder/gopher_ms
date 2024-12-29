@@ -133,8 +133,11 @@ services:
       - ./mail_service:/usr/src/app
     environment:
       AIR_ENV: dev
-      EMAIL_NOREPLY: noreply@gopher_ms.com
+      EMAIL_NOREPLY_ADD: noreply@gopher_ms.com
+      EMAIL_NOREPLY_NAME: gopher pee
       SMTP_HOST: mailhog
       SMTP_USER: user
       SMTP_PASSWORD: password
       SMTP_PORT: 1025
+      SMTP_ENCRYPTION: none
+      SMTP_DOMAIN: localhost

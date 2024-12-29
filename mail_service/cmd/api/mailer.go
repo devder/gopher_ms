@@ -10,6 +10,7 @@ import (
 )
 
 type Mail struct {
+	domain      string
 	host        string
 	port        int
 	username    string

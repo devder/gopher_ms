@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 )
 
 type mailMessage struct {
-	From    string `json:"from"`
 	To      string `json:"to"`
 	Subject string `json:"subject"`
 	Message string `json:"message"`
@@ -22,7 +22,7 @@ func (app *Config) SendMail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	msg := Message{
-		from:    requestPayload.From,
+		from:    os.Getenv("EMAIL_NOREPLY_ADD"),
 		to:      requestPayload.To,
 		subject: requestPayload.Subject,
 		data:    requestPayload.Message,

@@ -5,6 +5,7 @@ networks:
 volumes:
   postgres_data:
   mongodb_data:
+  rabbitmq_data:
 
 services:
   db:
@@ -46,6 +47,15 @@ services:
     ports:
       - "8026:8025"
       - "1026:1025"
+
+  rabbitmq:
+    image: rabbitmq:4.0.5-alpine
+    container_name: gopher_ms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
 
   front_end:
     build:
@@ -141,3 +151,18 @@ services:
       SMTP_PORT: 1025
       SMTP_ENCRYPTION: none
       SMTP_DOMAIN: localhost
+
+  listener:
+    build:
+      context: ./listener_service
+      dockerfile: listener-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_listener
+    ports:
+      - "8084:80"
+    volumes:
+      - ./listener_service:/usr/src/app
+    environment:
+      AIR_ENV: dev
+      DSN: postgresql://root:password@db:5432/users?sslmode=disable
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/

@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/devder/gopher_ms/broker/event"
 )
 
 // Reuse the HTTP client
@@ -17,6 +20,7 @@ type RequestPayload struct {
 	Action string      `json:"action"`
 	Auth   AuthPayload `json:"auth,omitempty"`
 	Log    LogPayload  `json:"log,omitempty"`
+	Mail   MailPayload `json:"mail,omitempty"`
 }
 
 type AuthPayload struct {
@@ -27,6 +31,12 @@ type AuthPayload struct {
 type LogPayload struct {
 	Name string `json:"name"`
 	Data string `json:"data"`
+}
+
+type MailPayload struct {
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	Message string `json:"message"`
 }
 
 func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
@@ -50,7 +60,10 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
-		app.logItem(w, requestPayload.Log)
+		// app.logItem(w, requestPayload.Log)
+		app.logEventViaRabbit(w, requestPayload.Log)
+	case "mail":
+		app.sendMail(w, requestPayload.Mail)
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 	}
@@ -141,4 +154,67 @@ func (app *Config) logItem(w http.ResponseWriter, l LogPayload) {
 	}
 
 	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) sendMail(w http.ResponseWriter, m MailPayload) {
+	jsonData, _ := json.MarshalIndent(m, "", "\t")
+
+	// call the mail service
+	req, err := http.NewRequest(http.MethodPost, "http://mailer/send", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	req.Header.Set("Accept", "application/json")
+	resp, err := client.Do(req)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	// ensure we get back the correct status
+	if resp.StatusCode != http.StatusAccepted {
+		errMsg := "failed to call mailer service"
+		app.errorJSON(w, errors.New(errMsg))
+		return
+	}
+
+	// create a variable we'll read response.Body into
+	payload := jsonResponse{
+		Error:   false,
+		Message: fmt.Sprintf("mail sent to %s", m.To),
+	}
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) logEventViaRabbit(w http.ResponseWriter, l LogPayload) {
+	err := app.pushToQueue(l.Name, l.Data)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "Logged via RabbitMQ",
+		Data:    l.Name,
+	}
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) pushToQueue(name, msg string) error {
+	emitter := event.NewEventEmitter(app.rabbitConn)
+
+	payload := LogPayload{
+		Name: name,
+		Data: msg,
+	}
+
+	p, _ := json.Marshal(&payload)
+	return emitter.Push(string(p), "log.INFO")
 }

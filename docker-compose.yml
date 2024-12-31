@@ -5,24 +5,9 @@ networks:
 volumes:
   postgres_data:
   mongodb_data:
+  rabbitmq_data:
 
 services:
-  front_end:
-    build:
-      context: ./front_end
-      dockerfile: front-end.Dockerfile
-    restart: unless-stopped
-    container_name: gopher_ms_front_end
-    ports:
-      - "80:80"
-    deploy:
-      mode: replicated
-      replicas: 1
-    volumes:
-      - ./front_end:/usr/src/app
-    environment:
-      AIR_ENV: dev
-
   db:
     image: postgres:16-alpine
     container_name: gopher_ms_db
@@ -39,7 +24,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d users"]
-      interval: 10s
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
@@ -56,6 +41,44 @@ services:
     volumes:
       - mongodb_data:/data/db
 
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: gopher_ms_mailhog
+    ports:
+      - "8026:8025"
+      - "1026:1025"
+
+  rabbitmq:
+    image: rabbitmq:4.0.5-alpine
+    container_name: gopher_ms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  front_end:
+    build:
+      context: ./front_end
+      dockerfile: front-end.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_front_end
+    ports:
+      - "80:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./front_end:/usr/src/app
+    environment:
+      AIR_ENV: dev
+
   broker:
     build:
       context: ./broker_service
@@ -64,13 +87,15 @@ services:
     container_name: gopher_ms_broker
     ports:
       - "8080:80"
-    deploy:
-      mode: replicated
-      replicas: 1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
     volumes:
       - ./broker_service:/usr/src/app
     environment:
       AIR_ENV: dev
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
 
   auth:
     build:
@@ -110,3 +135,46 @@ services:
       AIR_ENV: dev
       MONGO_USERNAME: root
       MONGO_PASSWORD: password
+
+  mailer:
+    build:
+      context: ./mail_service
+      dockerfile: mail-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_mailer
+    ports:
+      - "8083:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./mail_service:/usr/src/app
+    environment:
+      AIR_ENV: dev
+      EMAIL_NOREPLY_ADD: noreply@gopher_ms.com
+      EMAIL_NOREPLY_NAME: gopher pee
+      SMTP_HOST: mailhog
+      SMTP_USER: user
+      SMTP_PASSWORD: password
+      SMTP_PORT: 1025
+      SMTP_ENCRYPTION: none
+      SMTP_DOMAIN: localhost
+
+  listener:
+    build:
+      context: ./listener_service
+      dockerfile: listener-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_listener
+    ports:
+      - "8084:80"
+    volumes:
+      - ./listener_service:/usr/src/app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
+    environment:
+      AIR_ENV: dev
+      DSN: postgresql://root:password@db:5432/users?sslmode=disable
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/

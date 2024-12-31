@@ -5,6 +5,7 @@ networks:
 volumes:
   postgres_data:
   mongodb_data:
+  rabbitmq_data:
 
 services:
   db:
@@ -23,7 +24,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d users"]
-      interval: 10s
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
@@ -46,6 +47,21 @@ services:
     ports:
       - "8026:8025"
       - "1026:1025"
+
+  rabbitmq:
+    image: rabbitmq:4.0.5-alpine
+    container_name: gopher_ms_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   front_end:
     build:
@@ -71,13 +87,15 @@ services:
     container_name: gopher_ms_broker
     ports:
       - "8080:80"
-    deploy:
-      mode: replicated
-      replicas: 1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
     volumes:
       - ./broker_service:/usr/src/app
     environment:
       AIR_ENV: dev
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
 
   auth:
     build:
@@ -141,3 +159,22 @@ services:
       SMTP_PORT: 1025
       SMTP_ENCRYPTION: none
       SMTP_DOMAIN: localhost
+
+  listener:
+    build:
+      context: ./listener_service
+      dockerfile: listener-service.dev.Dockerfile
+    restart: unless-stopped
+    container_name: gopher_ms_listener
+    ports:
+      - "8084:80"
+    volumes:
+      - ./listener_service:/usr/src/app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
+    environment:
+      AIR_ENV: dev
+      DSN: postgresql://root:password@db:5432/users?sslmode=disable
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/

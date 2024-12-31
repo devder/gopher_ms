@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/devder/gopher_ms/listener/util"
+	"github.com/devder/gopher_ms/broker/util"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -99,7 +99,7 @@ func (consumer *Consumer) Listen(topics []string) {
 func handlePayload(payload Payload) {
 	log.Printf("Handling payload: Name=%s, Data=%s", payload.Name, payload.Data)
 	switch payload.Name {
-	case "log", "event", "info":
+	case "log", "event":
 		// log whatever we get
 		logEvent(payload)
 	case "auth":

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/devder/gopher_ms/broker/event"
 )
 
 // Reuse the HTTP client
@@ -58,7 +60,8 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
-		app.logItem(w, requestPayload.Log)
+		// app.logItem(w, requestPayload.Log)
+		app.logEventViaRabbit(w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
@@ -186,4 +189,32 @@ func (app *Config) sendMail(w http.ResponseWriter, m MailPayload) {
 	}
 
 	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) logEventViaRabbit(w http.ResponseWriter, l LogPayload) {
+	err := app.pushToQueue(l.Name, l.Data)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "Logged via RabbitMQ",
+		Data:    l.Name,
+	}
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+func (app *Config) pushToQueue(name, msg string) error {
+	emitter := event.NewEventEmitter(app.rabbitConn)
+
+	payload := LogPayload{
+		Name: name,
+		Data: msg,
+	}
+
+	p, _ := json.Marshal(&payload)
+	return emitter.Push(string(p), "log.INFO")
 }

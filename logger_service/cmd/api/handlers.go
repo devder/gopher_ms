@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/devder/gopher_ms/logger/data"
 )
@@ -19,8 +20,9 @@ func (app *Config) WriteLog(w http.ResponseWriter, r *http.Request) {
 
 	// insert data
 	event := data.LogEntry{
-		Name: requestPayload.Name,
-		Data: requestPayload.Data,
+		Name:      requestPayload.Name,
+		Data:      requestPayload.Data,
+		CreatedAt: time.Now(),
 	}
 
 	err := app.Models.LogEntry.Insert(event)

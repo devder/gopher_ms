@@ -40,6 +40,7 @@ func NewConsumer(conn *amqp.Connection) Consumer {
 func (consumer *Consumer) setup() error {
 	channel, err := consumer.conn.Channel()
 	util.FailOnError(err, "Failed to open channel")
+	defer channel.Close()
 
 	return declareExchange(channel)
 }

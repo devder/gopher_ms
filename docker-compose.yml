@@ -87,13 +87,15 @@ services:
     container_name: gopher_ms_broker
     ports:
       - "8080:80"
-    deploy:
-      mode: replicated
-      replicas: 1
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
     volumes:
       - ./broker_service:/usr/src/app
     environment:
       AIR_ENV: dev
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
 
   auth:
     build:

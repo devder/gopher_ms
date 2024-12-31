@@ -24,7 +24,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d users"]
-      interval: 10s
+      interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
@@ -56,6 +56,12 @@ services:
       - "15672:15672"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   front_end:
     build:
@@ -162,6 +168,10 @@ services:
       - "8084:80"
     volumes:
       - ./listener_service:/usr/src/app
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+        restart: true
     environment:
       AIR_ENV: dev
       DSN: postgresql://root:password@db:5432/users?sslmode=disable

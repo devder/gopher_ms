@@ -18,8 +18,7 @@ var client = &http.Client{
 }
 
 type Consumer struct {
-	conn      *amqp.Connection
-	queueName string
+	conn *amqp.Connection
 }
 
 type Payload struct {
@@ -27,7 +26,7 @@ type Payload struct {
 	Data string `json:"data"`
 }
 
-func newConsumer(conn *amqp.Connection) (Consumer, error) {
+func NewConsumer(conn *amqp.Connection) Consumer {
 	consumer := Consumer{
 		conn: conn,
 	}
@@ -35,7 +34,7 @@ func newConsumer(conn *amqp.Connection) (Consumer, error) {
 	err := consumer.setup()
 	util.FailOnError(err, "Failed to declare exchange")
 
-	return consumer, nil
+	return consumer
 }
 
 func (consumer *Consumer) setup() error {
@@ -45,7 +44,7 @@ func (consumer *Consumer) setup() error {
 	return declareExchange(channel)
 }
 
-func (consumer *Consumer) listen(topics []string) {
+func (consumer *Consumer) Listen(topics []string) {
 	ch, err := consumer.conn.Channel()
 	util.FailOnError(err, "Failed to open channel")
 	defer ch.Close()
@@ -116,14 +115,14 @@ func logEvent(entry Payload) {
 	// call the service
 	req, err := http.NewRequest(http.MethodPost, "http://logger/log", bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Errorf("%w", err)
+		log.Printf("Error creating new request: %v", err)
 		return
 	}
 
 	req.Header.Set("Accept", "application/json")
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Errorf("%w", err)
+		log.Printf("Error calling logger service: %v", fmt.Errorf("%w", err))
 		return
 	}
 
@@ -132,6 +131,6 @@ func logEvent(entry Payload) {
 	// ensure we get back the correct status
 	if resp.StatusCode != http.StatusAccepted {
 		errMsg := "failed to call logger service"
-		fmt.Errorf("%s %w", errMsg, err)
+		log.Printf("%s: %v", errMsg, err)
 	}
 }

@@ -10,6 +10,7 @@
                 <a id="authBrokerBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Auth</a>
                 <a id="loggerBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Logger</a>
                 <a id="mailBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test Mailer</a>
+                <a id="grpcBtn" class="btn btn-outline-secondary" href="javascript:void(0);">Test gRPC</a>
 
                 <div id="output" class="mt-5" style="outline: 1px solid silver; padding: 2em;">
                     <span class="text-muted">Output shows here...</span>
@@ -39,6 +40,7 @@
     const authBrokerBtn = document.getElementById("authBrokerBtn");
     const loggerBtn = document.getElementById("loggerBtn");
     const mailBtn = document.getElementById("mailBtn");
+    const grpcBtn = document.getElementById("grpcBtn");
     const output = document.getElementById("output");
     const sent = document.getElementById("payload");
     const received = document.getElementById("received");
@@ -155,6 +157,38 @@
                 output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
             } else {
                 output.innerHTML += `<br><strong>Response from mailer service:</strong> ${data.message}`;
+            }
+            sent.innerHTML = JSON.stringify(payload, null, 4);
+            received.innerHTML = JSON.stringify(data, null, 4);
+        } catch (e) {
+            console.error(e);
+            output.innerHTML += `<br><strong>Error</strong>: ${e.message}`;
+        }
+    });
+
+    grpcBtn.addEventListener("click", async () => {
+        const payload = {
+            action: "log",
+            log: {
+                name: "info",
+                data: "some kind of gRPC data",
+            }
+        }
+        try {
+            const response = await fetch("http:\/\/localhost:8080/grpc", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await response.json();
+            if (data.error) {
+                console.error(data.message);
+                output.innerHTML += `<br><strong>Error</strong>: ${data.message}`;
+            } else {
+                output.innerHTML += `<br><strong>Response from gRPC service:</strong> ${data.message}`;
             }
             sent.innerHTML = JSON.stringify(payload, null, 4);
             received.innerHTML = JSON.stringify(data, null, 4);

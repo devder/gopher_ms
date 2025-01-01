@@ -2,20 +2,37 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/rpc"
 	"time"
 
 	"github.com/devder/gopher_ms/broker/event"
+	"github.com/devder/gopher_ms/broker/logs"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 // Reuse the HTTP client
 var client = &http.Client{
 	Timeout: 10 * time.Second,
 }
+
+var retryPolicy = `{
+	"methodConfig": [{
+		"name": [{"service": "grpc.examples.echo.Echo"}],
+		"retryPolicy": {
+			"MaxAttempts": 4,
+			"InitialBackoff": ".01s",
+			"MaxBackoff": ".01s",
+			"BackoffMultiplier": 1.0,
+			"RetryableStatusCodes": [ "UNAVAILABLE" ]
+		}
+	}]}`
 
 type RequestPayload struct {
 	Action string      `json:"action"`
@@ -74,6 +91,51 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 	}
+}
+
+func (app *Config) HandleGRPCSubmission(w http.ResponseWriter, r *http.Request) {
+	var requestPayload RequestPayload
+	err := app.readJSON(w, r, &requestPayload)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	conn, err := grpc.NewClient("logger:50001", grpc.WithTransportCredentials(insecure.NewCredentials()), grpc.WithDefaultServiceConfig(retryPolicy))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	defer func() {
+		if e := conn.Close(); e != nil {
+			log.Printf("failed to close connection: %s", e)
+		}
+	}()
+
+	c := logs.NewLogServiceClient(conn)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	reply, err := c.WriteLog(ctx, &logs.LogRequest{
+		LogEntry: &logs.Log{
+			Name: requestPayload.Log.Name,
+			Data: requestPayload.Log.Data,
+		},
+	})
+
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+	log.Printf("WriteLog reply: %v", reply)
+
+	payload := jsonResponse{
+		Error:   false,
+		Message: "logged with gRPC",
+	}
+
+	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {

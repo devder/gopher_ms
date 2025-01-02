@@ -41,3 +41,10 @@ stop:
 	@echo "Stopping front end..."
 	@-pkill -SIGTERM -f "./${FRONT_END_BINARY}"
 	@echo "Stopped front end!"
+
+proto:
+	rm -f logger_service/logs/*go 
+	protoc --proto_path=logger_service/logs --go_out=logger_service/logs --go_opt=paths=source_relative \
+  --go-grpc_out=logger_service/logs --go-grpc_opt=paths=source_relative \
+	--grpc-gateway_out=logger_service/logs --grpc-gateway_opt=paths=source_relative --grpc-gateway_opt=generate_unbound_methods=true \
+  logger_service/logs/*.proto

@@ -176,5 +176,4 @@ services:
         restart: true
     environment:
       AIR_ENV: dev
-      DSN: postgresql://root:password@db:5432/users?sslmode=disable
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/

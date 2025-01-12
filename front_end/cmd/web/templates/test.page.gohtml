@@ -36,6 +36,7 @@
 
 {{define "js"}}
     <script>
+    const brokerURL = {{.BrokerURL}};
     const brokerBtn = document.getElementById("brokerBtn");
     const authBrokerBtn = document.getElementById("authBrokerBtn");
     const loggerBtn = document.getElementById("loggerBtn");
@@ -47,7 +48,7 @@
 
     brokerBtn.addEventListener("click", async () => {
         try {
-            const response = await fetch("http:\/\/localhost:8080", {
+            const response = await fetch(`${brokerURL}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -78,7 +79,7 @@
             }
         }
         try {
-            const response = await fetch("http:\/\/localhost:8080/handle", {
+            const response = await fetch(`${brokerURL}/handle`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -110,7 +111,7 @@
             }
         }
         try {
-            const response = await fetch("http:\/\/localhost:8080/handle", {
+            const response = await fetch(`${brokerURL}/handle`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -143,7 +144,7 @@
             }
         }
         try {
-            const response = await fetch("http:\/\/localhost:8080/handle", {
+            const response = await fetch(`${brokerURL}/handle`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -175,7 +176,7 @@
             }
         }
         try {
-            const response = await fetch("http:\/\/localhost:8080/grpc", {
+            const response = await fetch(`${brokerURL}/grpc`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

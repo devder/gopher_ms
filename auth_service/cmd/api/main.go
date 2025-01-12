@@ -17,21 +17,23 @@ import (
 const webPort = "80"
 
 type Config struct {
-	DB     *sql.DB
-	Models data.Models
+	Repo   data.Repository
+	Client *http.Client
 }
 
 func main() {
 	log.Printf("Starting auth service on port %s\n", webPort)
 
-	conn := connectDB()
-	if conn == nil {
+	dbConn := connectDB()
+	if dbConn == nil {
 		log.Panic("Can't connect to DB!")
 	}
 
 	app := Config{
-		DB:     conn,
-		Models: data.New(conn),
+		Repo: data.NewPostgresRepository(dbConn),
+		Client: &http.Client{
+			Timeout: 10 * time.Second,
+		},
 	}
 
 	// define http server

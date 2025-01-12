@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logger-deployment
+  labels:
+    app: ms-logger
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-logger
+  template:
+    metadata:
+      labels:
+        app: ms-logger
+    spec:
+      containers:
+        - name: ms-logger
+          image: devder/gopher_ms_logger:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+            - containerPort: 5001 # RPC
+            - containerPort: 50001 # gRPC
+          env:
+            - name: MONGO_USERNAME
+              value: user
+            - name: MONGO_PASSWORD
+              value: password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-logger-service
+spec:
+  selector:
+    app: ms-logger
+  ports:
+    - protocol: TCP
+      name: http
+      port: 80
+      targetPort: 80
+    - protocol: TCP
+      name: rpc
+      port: 5001
+      targetPort: 5001
+    - protocol: TCP
+      name: grpc
+      port: 50001
+      targetPort: 50001

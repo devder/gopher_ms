@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ms-mail-deployment
+  labels:
+    app: ms-mail
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ms-mail
+  template:
+    metadata:
+      labels:
+        app: ms-mail
+    spec:
+      containers:
+        - name: ms-mail
+          image: devder/gopher_ms_mail:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          env:
+            - name: EMAIL_NOREPLY_ADD
+              value: "noreply@gopher_ms.com"
+            - name: EMAIL_NOREPLY_NAME
+              value: "Gopher MS"
+            - name: SMTP_HOST
+              value: "smtp.gmail.com"
+            - name: SMTP_PORT
+              value: "587"
+            - name: SMTP_USER
+              value: "user"
+            - name: SMTP_PASSWORD
+              value: "password"
+            - name: SMTP_ENCRYPTION
+              value: none
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ms-mail-service
+spec:
+  selector:
+    app: ms-mail
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80

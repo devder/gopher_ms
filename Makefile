@@ -48,3 +48,6 @@ proto:
   --go-grpc_out=logger_service/logs --go-grpc_opt=paths=source_relative \
 	--grpc-gateway_out=logger_service/logs --grpc-gateway_opt=paths=source_relative --grpc-gateway_opt=generate_unbound_methods=true \
   logger_service/logs/*.proto
+
+test:
+	cd auth_service/cmd/api && go test -v -cover ./...
